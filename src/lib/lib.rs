@@ -683,6 +683,7 @@ impl WindowMode {
 }
 
 /// A group of key modifiers
+#[deriving(Clone)]
 pub struct Modifiers {
     values: c_int,
 }
@@ -726,6 +727,7 @@ impl fmt::Show for Modifiers {
 
 pub type Scancode = c_int;
 
+#[deriving(Clone)]
 pub enum WindowEvent {
     PosEvent(i32, i32),
     SizeEvent(i32, i32),
@@ -768,7 +770,7 @@ impl<'a> Iterator<(f64, WindowEvent)> for FlushedWindowEvents<'a> {
 /// A struct that wraps a `*GLFWwindow` handle.
 pub struct Window {
     ptr: *ffi::GLFWwindow,
-    event_receiver: Receiver<(f64, WindowEvent)>,
+    event_receiver: Option<Receiver<(f64, WindowEvent)>>,
     is_shared: bool,
 }
 
@@ -813,7 +815,7 @@ impl Window {
             unsafe { ffi::glfwSetWindowUserPointer(ptr, cast::transmute(~sender)); }
             Some(Window {
                 ptr: ptr,
-                event_receiver: receiver,
+                event_receiver: Some(receiver),
                 is_shared: share.is_none(),
             })
         }
@@ -824,11 +826,11 @@ impl Window {
     }
 
     pub fn events<'a>(&'a self) -> WindowEvents<'a> {
-        WindowEvents { event_receiver: &'a self.event_receiver }
+        WindowEvents { event_receiver: self.event_receiver.as_ref().unwrap() }
     }
 
     pub fn flush_events<'a>(&'a self) -> FlushedWindowEvents<'a> {
-        FlushedWindowEvents { event_receiver: &'a self.event_receiver }
+        FlushedWindowEvents { event_receiver: self.event_receiver.as_ref().unwrap() }
     }
 
     /// Wrapper for `glfwWindowShouldClose`.
