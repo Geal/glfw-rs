@@ -765,10 +765,28 @@ impl<'a> Iterator<(f64, WindowEvent)> for FlushedWindowEvents<'a> {
     }
 }
 
+pub struct EventReceiver {
+    event_receiver: Receiver<(f64, WindowEvent)>
+}
+
+impl EventReceiver
+{
+    pub fn to_receiver(self) -> Receiver<(f64, WindowEvent)> {
+        self.event_receiver
+    }
+
+    pub fn events<'a>(&'a self) -> WindowEvents<'a> {
+        WindowEvents { event_receiver: &'a self.event_receiver }
+    }
+
+    pub fn flush_events<'a>(&'a self) -> FlushedWindowEvents<'a> {
+        FlushedWindowEvents { event_receiver: &'a self.event_receiver }
+    }    
+} 
+
 /// A struct that wraps a `*GLFWwindow` handle.
 pub struct Window {
     ptr: *ffi::GLFWwindow,
-    event_receiver: Receiver<(f64, WindowEvent)>,
     is_shared: bool,
 }
 
@@ -784,17 +802,17 @@ macro_rules! set_window_callback(
 
 impl Window {
     /// Wrapper for `glfwCreateWindow`.
-    pub fn create(width: u32, height: u32, title: &str, mode: WindowMode) -> Option<Window> {
+    pub fn create(width: u32, height: u32, title: &str, mode: WindowMode) -> Option<(Window, EventReceiver)> {
         Window::create_intern(width, height, title, mode, None)
     }
 
     /// Wrapper for `glfwCreateWindow`.
-    pub fn create_shared(&self, width: u32, height: u32, title: &str, mode: WindowMode) -> Option<Window> {
+    pub fn create_shared(&self, width: u32, height: u32, title: &str, mode: WindowMode) -> Option<(Window, EventReceiver)> {
         Window::create_intern(width, height, title, mode, Some(self))
     }
 
     /// Internal wrapper for `glfwCreateWindow`.
-    fn create_intern(width: u32, height: u32, title: &str, mode: WindowMode, share: Option<&Window>) -> Option<Window> {
+    fn create_intern(width: u32, height: u32, title: &str, mode: WindowMode, share: Option<&Window>) -> Option<(Window, EventReceiver)> {
         let ptr = unsafe {
             title.with_c_str(|title| {
                 ffi::glfwCreateWindow(
@@ -811,24 +829,14 @@ impl Window {
         } else {
             let (sender, receiver) = channel();
             unsafe { ffi::glfwSetWindowUserPointer(ptr, cast::transmute(~sender)); }
-            Some(Window {
-                ptr: ptr,
-                event_receiver: receiver,
-                is_shared: share.is_none(),
-            })
+            Some((Window {ptr: ptr, is_shared: share.is_none()},
+                  EventReceiver { event_receiver: receiver }
+            ))
         }
     }
 
     pub fn close(self) {
         // Calling this method forces the destructor to be called, closing the window
-    }
-
-    pub fn events<'a>(&'a self) -> WindowEvents<'a> {
-        WindowEvents { event_receiver: &'a self.event_receiver }
-    }
-
-    pub fn flush_events<'a>(&'a self) -> FlushedWindowEvents<'a> {
-        FlushedWindowEvents { event_receiver: &'a self.event_receiver }
     }
 
     /// Wrapper for `glfwWindowShouldClose`.
