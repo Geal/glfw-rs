@@ -48,7 +48,7 @@ mod callbacks;
 mod link;
 
 #[repr(C)]
-#[deriving(Clone, Eq, Hash, Show)]
+#[deriving(Clone, Eq, Hash, Show, TotalEq)]
 pub enum Action {
     Release                      = ffi::RELEASE,
     Press                        = ffi::PRESS,
@@ -56,7 +56,7 @@ pub enum Action {
 }
 
 #[repr(C)]
-#[deriving(Clone, Eq, Hash, Show)]
+#[deriving(Clone, Eq, Hash, Show, TotalEq)]
 pub enum Key {
     KeySpace                    = ffi::KEY_SPACE,
     KeyApostrophe               = ffi::KEY_APOSTROPHE,
@@ -182,7 +182,7 @@ pub enum Key {
 }
 
 #[repr(C)]
-#[deriving(Clone, Eq, Hash)]
+#[deriving(Clone, Eq, Hash, TotalEq)]
 pub enum MouseButton {
     MouseButton1                = ffi::MOUSE_BUTTON_1,
     MouseButton2                = ffi::MOUSE_BUTTON_2,
@@ -683,6 +683,7 @@ impl WindowMode {
 }
 
 /// A group of key modifiers
+#[deriving(Clone)]
 pub struct Modifiers {
     values: c_int,
 }
@@ -726,6 +727,7 @@ impl fmt::Show for Modifiers {
 
 pub type Scancode = c_int;
 
+#[deriving(Clone)]
 pub enum WindowEvent {
     PosEvent(i32, i32),
     SizeEvent(i32, i32),
