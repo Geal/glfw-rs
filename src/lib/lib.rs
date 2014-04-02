@@ -13,27 +13,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[crate_type = "lib"];
-#[crate_type = "rlib"];
-#[crate_type = "dylib"];
-#[crate_id = "github.com/bjz/glfw-rs#glfw-rs:0.1"];
-#[comment = "Bindings and wrapper functions for glfw3."];
+#![crate_type = "lib"]
+#![crate_type = "rlib"]
+#![crate_type = "dylib"]
+#![crate_id = "github.com/bjz/glfw-rs#glfw-rs:0.1"]
+#![comment = "Bindings and wrapper functions for glfw3."]
 
-#[feature(globs)];
-#[feature(macro_rules)];
+#![feature(globs)]
+#![feature(macro_rules)]
 
 // TODO: Document differences between GLFW and glfw-rs
 
+#![feature(phase)]
+#[phase(syntax, link)]
+extern crate log;
 extern crate semver;
 extern crate sync;
 
 use std::cast;
-use std::comm::{Port, Chan, Data};
+use std::comm::{Receiver, Sender, Data};
 use std::fmt;
 use std::libc::*;
 use std::ptr;
 use std::str;
-use std::vec;
+use std::vec::Vec;
 use semver::Version;
 
 pub mod ffi;
@@ -712,7 +715,7 @@ pub enum WindowEvent {
 }
 
 pub struct WindowEvents<'a> {
-    priv event_port: &'a Port<(f64, WindowEvent)>,
+    event_port: &'a Receiver<(f64, WindowEvent)>,
 }
 
 impl<'a> Iterator<(f64, WindowEvent)> for WindowEvents<'a> {
@@ -722,7 +725,7 @@ impl<'a> Iterator<(f64, WindowEvent)> for WindowEvents<'a> {
 }
 
 pub struct FlushedWindowEvents<'a> {
-    priv event_port: &'a Port<(f64, WindowEvent)>,
+    event_port: &'a Receiver<(f64, WindowEvent)>,
 }
 
 impl<'a> Iterator<(f64, WindowEvent)> for FlushedWindowEvents<'a> {
@@ -737,7 +740,7 @@ impl<'a> Iterator<(f64, WindowEvent)> for FlushedWindowEvents<'a> {
 /// A struct that wraps a `*GLFWwindow` handle.
 pub struct Window {
     ptr: *ffi::GLFWwindow,
-    event_port: Option<Port<(f64, WindowEvent)>>,
+    event_port: Option<Receiver<(f64, WindowEvent)>>,
     is_shared: bool,
 }
 
@@ -778,7 +781,7 @@ impl Window {
         if ptr.is_null() {
             None
         } else {
-            let (port, chan) = Chan::new();
+            let (port, chan) = comm::channel();
             unsafe { ffi::glfwSetWindowUserPointer(ptr, cast::transmute(~chan)); }
             Some(Window {
                 ptr: ptr,
@@ -1185,7 +1188,7 @@ impl Drop for Window {
         }
         if !self.ptr.is_null() {
             unsafe {
-                let _: ~Chan<(f64, WindowEvent)> = cast::transmute(ffi::glfwGetWindowUserPointer(self.ptr));
+                let _: ~Sender<(f64, WindowEvent)> = cast::transmute(ffi::glfwGetWindowUserPointer(self.ptr));
             }
         }
     }
